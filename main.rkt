@@ -3,7 +3,9 @@
 (require racket/gui/base
          racket/class
          racket/list
-         racket/path)
+         racket/path
+         racket/system
+         racket/port)
 
 ;; 定义主窗口
 (define frame 
@@ -15,6 +17,7 @@
 ;; 创建菜单栏
 (define mb (new menu-bar% [parent frame]))
 (define file-menu (new menu% [label "文件"] [parent mb]))
+(define view-menu (new menu% [label "视图"] [parent mb]))
 
 ;; 创建水平分割面板
 (define h-panel
@@ -40,6 +43,89 @@
        [stretchable-width #t]
        [stretchable-height #t]))
 
+;; 创建编辑器面板
+(define editor-panel
+  (new vertical-panel%
+       [parent main-panel]
+       [stretchable-width #t]
+       [stretchable-height #t]))
+
+;; 创建标签页控件
+(define tab-panel
+  (new tab-panel%
+       [parent editor-panel]
+       [choices '("未命名")]
+       [callback (lambda (tp e) 
+                  (when (send tp get-selection)
+                    (update-status)))]))
+
+;; 创建终端面板
+(define terminal-panel
+  (new vertical-panel%
+       [parent main-panel]
+       [style '(border)]
+       [min-height 150]
+       [stretchable-height #f]))
+
+;; 创建终端标题栏
+(define terminal-title-panel
+  (new horizontal-panel%
+       [parent terminal-panel]
+       [stretchable-height #f]))
+
+(new message%
+     [parent terminal-title-panel]
+     [label " 终端"])
+
+(define terminal-close-button
+  (new button%
+       [parent terminal-title-panel]
+       [label "×"]
+       [min-width 20]
+       [callback (lambda (b e)
+                  (send terminal-panel show #f))]))
+
+;; 创建终端输出显示
+(define terminal-text
+  (new (class text%
+         (super-new)
+         (define/public (append-text str)
+           (let ([len (send this last-position)])
+             (send this insert str len)
+             (send this scroll-to-position (send this last-position)))))))
+
+(define terminal-canvas
+  (new editor-canvas%
+       [parent terminal-panel]
+       [style '(no-hscroll auto-vscroll)]
+       [min-height 120]
+       [stretchable-width #t]))
+
+(send terminal-canvas set-editor terminal-text)
+
+;; 创建终端输入框
+(define terminal-input
+  (new text-field%
+       [parent terminal-panel]
+       [label ">"]
+       [stretchable-width #t]
+       [callback (lambda (t e)
+                  (when (eq? (send e get-event-type) 'text-field-enter)
+                    (let ([cmd (send t get-value)])
+                      (send t set-value "")
+                      (execute-command cmd))))]))
+
+;; 终端命令执行函数
+(define (execute-command cmd)
+  (let* ([shell (if (eq? (system-type) 'windows) "cmd.exe" "/bin/bash")]
+         [shell-arg (if (eq? (system-type) 'windows) "/c" "-c")]
+         [process-output
+          (with-output-to-string
+            (lambda ()
+              (system* shell shell-arg cmd)))])
+    (send terminal-text append-text
+          (format "> ~a\n~a" cmd process-output))))
+
 ;; 创建文件列表
 (define file-list
   (new list-box%
@@ -58,15 +144,6 @@
 ;; 文件路径列表
 (define directory-files '())
 (define (get-directory-files) directory-files)
-
-;; 创建标签页控件
-(define tab-panel
-  (new tab-panel%
-       [parent main-panel]
-       [choices '("未命名")]
-       [callback (lambda (tp e) 
-                  (when (send tp get-selection)
-                    (update-status)))]))
 
 ;; 标签页数据结构
 (struct tab-data (canvas text path) #:mutable)
@@ -161,6 +238,14 @@
      [label "退出"]
      [parent file-menu]
      [callback (lambda (i e) (send frame show #f))])
+
+;; 添加视图菜单项
+(new menu-item%
+     [label "显示终端"]
+     [parent view-menu]
+     [shortcut #\j]
+     [callback (lambda (i e)
+                (send terminal-panel show #t))])
 
 ;; 创建状态栏
 (define status-bar
