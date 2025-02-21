@@ -29,7 +29,8 @@
   (new vertical-panel%
        [parent h-panel]
        [alignment '(left top)]
-       [min-width 200]
+       [min-width 150]
+       [stretchable-width #f]
        [stretchable-height #t]))
 
 ;; 创建文件列表
