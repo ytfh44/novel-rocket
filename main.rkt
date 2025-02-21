@@ -20,7 +20,7 @@
 (define h-panel
   (new horizontal-panel%
        [parent frame]
-       [alignment '(left top)]
+       [spacing 1]
        [stretchable-width #t]
        [stretchable-height #t]))
 
@@ -28,9 +28,16 @@
 (define left-panel
   (new vertical-panel%
        [parent h-panel]
-       [alignment '(left top)]
-       [min-width 150]
+       [min-width 180]
        [stretchable-width #f]
+       [stretchable-height #t]
+       [style '(border)]))
+
+;; 创建右侧主面板
+(define main-panel
+  (new vertical-panel%
+       [parent h-panel]
+       [stretchable-width #t]
        [stretchable-height #t]))
 
 ;; 创建文件列表
@@ -45,20 +52,12 @@
        [callback (lambda (lb e)
                   (when (eq? (send e get-event-type) 'list-box-dclick)
                     (let* ([path (list-ref (get-directory-files) (send lb get-selection))])
-                           (when (file-exists? path)
-                             (create-tab path)))))]))
+                      (when (file-exists? path)
+                        (create-tab path)))))]))
 
 ;; 文件路径列表
 (define directory-files '())
 (define (get-directory-files) directory-files)
-
-;; 创建右侧主面板
-(define main-panel
-  (new vertical-panel%
-       [parent h-panel]
-       [alignment '(left top)]
-       [stretchable-width #t]
-       [stretchable-height #t]))
 
 ;; 创建标签页控件
 (define tab-panel
